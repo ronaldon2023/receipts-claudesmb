@@ -10,8 +10,9 @@ plain dicts with these fields:
   item:    order_id, name, quantity, unit_price_cents
   payment: id, bill_id, amount_cents, to_account, status, created_at
 
-SqliteSource reads a SQLite file whose tables are named vendors, bills, orders, order_items and
-payments, with those fields as columns. It opens the file read-only, so nothing that judges
+SqliteSource is the demo and test connector: it reads a SQLite file whose tables are named
+vendors, bills, orders, order_items and payments, with those fields as columns. Real businesses
+use the QuickBooks connector (receipts.quickbooks). It opens the file read-only, so nothing that judges
 the records can change them. It backs the example bakery and the tests. Use one per decision:
 sqlite3 connections can't be shared between threads.
 """
@@ -37,7 +38,7 @@ class Source(Protocol):
 
 
 class SqliteSource:
-    """A Source over a SQLite file, opened read-only."""
+    """A Source over a SQLite file, opened read-only. For the example bakery and the tests."""
 
     def __init__(self, db_path: Path | str) -> None:
         # The file URI form, with special characters escaped, so a name containing "?" or "#"

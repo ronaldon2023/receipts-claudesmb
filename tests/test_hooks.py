@@ -76,7 +76,7 @@ def test_stop_reports_every_bill_once(cfg: config.Config) -> None:
     message = json.loads(run("stop", {"session_id": "s1"}, cfg.root))["systemMessage"]
     assert message.startswith("Receipts: BILL-08: ISSUES_FOUND (C4 blocked:")
     assert "BILL-07: VERIFIED" in message
-    assert message.endswith("Full receipts in logs/receipts")
+    assert "Full receipts in logs/receipts" in message
     assert (cfg.receipts_dir / "receipt_BILL-07.json").is_file()
     assert run("stop", {"session_id": "s1"}, cfg.root) == ""
 
@@ -144,3 +144,9 @@ def test_no_hook_needs_the_projects_virtualenv() -> None:
     assert shutil.which("python3")
     hooks = (ROOT / "hooks" / "hooks.json").read_text()
     assert ".venv" not in hooks
+
+
+def test_stop_message_mentions_the_demo_source(cfg: config.Config) -> None:
+    attempt(cfg, CHANGED_ACCOUNT)
+    message = json.loads(run("stop", {"session_id": "s1"}, cfg.root))["systemMessage"]
+    assert message.endswith(f"({config.DEMO_NOTE}.)")

@@ -45,6 +45,8 @@ def _verify(cfg: config.Config) -> int:
 
 def _check(cfg: config.Config, bill_id: str, amount: int, account: str) -> int:
     args = {"bill_id": bill_id, "amount_cents": amount, "to_account": account}
+    if cfg.demo_source:
+        print(f"Note: {config.DEMO_NOTE}.")
     results = run_checks(cfg, args, cfg.load_payees())
     for r in results:
         print(f"{r.status.upper():7} {r.id:3} {r.title}")

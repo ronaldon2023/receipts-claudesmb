@@ -3,7 +3,8 @@
     {
       "business": "Sweet Rose Bakery",
       "mode": "enforce",
-      "source": {"type": "sqlite", "path": "bakery.db"},
+      "source": {"type": "quickbooks", "environment": "production",
+                 "realm_id": "9130350000000000", "client_id": "AB..."},
       "approval_threshold_cents": 50000,
       "require_purchase_order": true,
       "payment_tools": {
@@ -12,6 +13,13 @@
         }
       }
     }
+
+source is where the business's records are read from, read-only:
+- "quickbooks": QuickBooks Online through its API (receipts.quickbooks). This is the production
+  source.
+- "sqlite": a SQLite file (receipts.source.SqliteSource), for the example bakery and the tests
+  only. It is never a business's real books, so the verifier and the end-of-turn summary say
+  when it's in use.
 
 mode is "enforce" (refuse failing payments, ask the owner over the threshold) or "watch" (check
 and log every payment and report what would have been stopped, but never block: for a pilot).
@@ -44,6 +52,7 @@ from receipts import paths, payees, pii
 from receipts.source import Source, SqliteSource
 
 FILE_NAME = "receipts.json"
+DEMO_NOTE = "Records come from the demo SQLite source, not real books"
 DEFAULT_THRESHOLD_CENTS = 50000
 MODES = ("enforce", "watch")
 PAYMENT_FIELDS = ("bill_id", "amount_cents", "to_account")
@@ -87,6 +96,11 @@ class Config:
     def root(self) -> Path:
         """The project folder: where receipts.json is, and where logs/ goes."""
         return self.path.parent
+
+    @property
+    def demo_source(self) -> bool:
+        """Whether the records come from the demo SQLite source rather than real books."""
+        return self.source.get("type") == "sqlite"
 
     @property
     def log_path(self) -> Path:

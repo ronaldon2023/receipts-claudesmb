@@ -107,6 +107,8 @@ def report(event: object, cfg: config.Config) -> str | None:
             parts.append(f"{unnamed} payment(s) named no bill and were refused")
         folder = cfg.receipts_dir.relative_to(cfg.root)
         message = f"Receipts: {'; '.join(parts)}. Full receipts in {one_line(folder, 200)}"
+        if result.demo:
+            message += f". ({config.DEMO_NOTE}.)"
     except Exception as exc:  # noqa: BLE001 - say so once; a Stop hook must never break the turn
         message = (
             f"Receipts: couldn't build the receipts ({type(exc).__name__}). "

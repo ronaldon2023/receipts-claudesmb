@@ -57,7 +57,7 @@ def test_demo_run(demo: config.Config) -> None:
 def test_summary_lines(demo: config.Config) -> None:
     lines = verify.summary(verify.build(demo))
     assert lines[0].startswith("Log: intact")
-    assert lines[1].startswith("BILL-07 ($800.00 to Flour Co): VERIFIED")
+    assert lines[2].startswith("BILL-07 ($800.00 to Flour Co): VERIFIED")
 
 
 def test_owner_declines(cfg: config.Config) -> None:
@@ -227,3 +227,13 @@ def test_payment_naming_no_bill_is_reported_not_a_bill(cfg: config.Config) -> No
     result = verify.build(cfg)
     assert result.receipts == {} and result.unknown_bills == [] and result.no_bill == 1
     assert "1 payment(s) named no bill and were refused" in verify.summary(result)
+
+
+def test_demo_source_is_announced(demo: config.Config) -> None:
+    lines = verify.summary(verify.build(demo))
+    assert lines[1] == f"Note: {config.DEMO_NOTE}."
+
+
+def test_real_source_has_no_demo_note(cfg: config.Config) -> None:
+    cfg.source = {"type": "quickbooks"}
+    assert not cfg.demo_source

@@ -119,6 +119,7 @@ make receipt
 
 ```
 Log: intact, <n> entries
+Note: Records come from the demo SQLite source, not real books.
 BILL-07 ($800.00 to Flour Co): VERIFIED - Paid to the supplier's account on file, and the records match
 BILL-09 ($150.00 to Flour Co): ISSUES_FOUND - Stopped before any money moved: Bill came from flourco-payments.example, not Flour Co's flourco.example
 ```
@@ -131,7 +132,8 @@ every receipt turns UNTRUSTED. `make reset` starts over.
 See **[docs/threat-model.md](docs/threat-model.md)** for what Receipts protects against and
 what it doesn't. The main limits:
 
-- **Records:** QuickBooks Online, or a SQLite file. Other accounting systems need a connector.
+- **Records:** QuickBooks Online. Other accounting systems need a connector. (The SQLite source
+  is only for the example bakery and the tests; Receipts says so whenever it's in use.)
 - **Claude Code sessions only.** Payments made elsewhere aren't checked. Use the bank's own
   payee and approval rules as well.
 - **Listed tools only.** A payment tool missing from `payment_tools` isn't checked.
@@ -151,7 +153,7 @@ make receipt    # verify the example's log and write receipts
 
 | Folder | What it is |
 | --- | --- |
-| `receipts/` | The core: checks, guard, payee list, log, masking, verifier, config, and the SQLite and QuickBooks connectors. Standard library only; runs on Python 3.9+ |
+| `receipts/` | The core: checks, guard, payee list, log, masking, verifier, config, the QuickBooks connector, and a SQLite connector for the demo and tests. Standard library only; runs on Python 3.9+ |
 | `hooks/` | The plugin's hooks (`hooks.json`) and their entry point (`run.py`) |
 | `skills/setup/` | Helps the owner create `receipts.json` |
 | `examples/bakery/` | A mock bakery back office (MCP server and SQLite records) with no checks of its own |

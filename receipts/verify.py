@@ -47,6 +47,7 @@ class Result:
     receipts: dict[str, dict] = field(default_factory=dict)  # by bill id
     unknown_bills: list[str] = field(default_factory=list)  # in the log, not in the records
     no_bill: int = 0  # guard decisions on payments that named no bill (always refused)
+    demo: bool = False  # the records came from the demo SQLite source
 
 
 def read_log(path: Path) -> list[dict]:
@@ -275,7 +276,7 @@ def _receipt(
 
 def build(cfg: config.Config) -> Result:
     """A receipt for every bill the log mentions, plus bill ids the records don't have."""
-    result = Result(chain.verify(cfg.log_path))
+    result = Result(chain.verify(cfg.log_path), demo=cfg.demo_source)
     source = cfg.open_source()
     try:
         for bill_id, seen in _by_bill(read_log(cfg.log_path), cfg).items():
@@ -325,6 +326,8 @@ def summary(result: Result) -> list[str]:
     ]
     if result.no_bill:
         lines.append(f"{result.no_bill} payment(s) named no bill and were refused")
+    if result.demo:
+        lines.insert(1, f"Note: {config.DEMO_NOTE}.")
     if not result.receipts and not result.unknown_bills and not result.no_bill:
         lines.append("No payments in the log yet.")
     return lines

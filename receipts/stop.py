@@ -5,6 +5,9 @@ the guard decisions this session made since its last summary, runs the verifier,
 receipts, and returns the message to show. It says nothing when the session tried no payment
 since the last summary, or when Claude Code is already continuing because of a Stop hook.
 
+It also reads Claude's final message (the Stop event's last_assistant_message) for payment
+claims (receipts.claims) and logs them, so the verifier can flag a summary the records contradict.
+
 Which log line was last summarised for each session is kept in logs/summarised.json, inside the
 project's protected logs folder, so every verdict is shown once.
 """
@@ -14,10 +17,12 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import unicodedata
+from dataclasses import asdict
 from pathlib import Path
 
-from receipts import config, pending, verify
+from receipts import chain, claims, config, pending, pii, verify
 from receipts.filelock import locked
 from receipts.guard import GUARD_TOOL
 
@@ -82,7 +87,11 @@ def bill_line(bill_id: str, result: verify.Result) -> str:
     if receipt is None:
         return f"{one_line(bill_id)}: no receipt (the bill isn't in the records)"
     line = f"{one_line(bill_id)}: {one_line(receipt['verdict'])}"
-    concern = next((c for c in receipt["checks"] if c["status"] != "verified"), None)
+    concerns = [c for c in receipt["checks"] if c["status"] != "verified"]
+    # A summary the records contradict is the bigger news: show it first.
+    concern = next(
+        (c for c in concerns if c["status"] == "false_claim"), concerns[0] if concerns else None
+    )
     if concern:
         line += f" ({one_line(concern['id'])} {one_line(concern['status'])}: {one_line(concern['title'])})"
     return line
@@ -99,7 +108,21 @@ def report(event: object, cfg: config.Config) -> str | None:
     named = [(entry.get("input") or {}).get("bill_id") for entry in decisions]
     bills = list(dict.fromkeys(str(b) for b in named if b is not None))
     unnamed = named.count(None)
+    said = claims.extract(event.get("last_assistant_message"), bills)
     try:
+        if said:
+            # What Claude says it did goes into the tamper-evident log first, so the receipts
+            # compare it with the records, and the claim itself can't be changed afterwards.
+            chain.append(
+                {
+                    "ts": round(time.time(), 3),
+                    "session": session,
+                    "tool": verify.SUMMARY_TOOL,
+                    "input": pii.mask({"claims": [asdict(c) for c in said]}),
+                    "response": {},
+                },
+                cfg.log_path,
+            )
         result = verify.build(cfg)
         verify.write(cfg.receipts_dir, result)
         parts = [bill_line(b, result) for b in bills]

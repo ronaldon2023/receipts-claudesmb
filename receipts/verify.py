@@ -16,7 +16,10 @@ Verdicts:
 In watch mode (a pilot) the guard blocks nothing, so a payment it would have refused can go
 through; its verdict is ISSUES_FOUND and the reason says Receipts would have stopped it.
 
-Nothing here asks Claude: Claude's own summary is not an input.
+Claude's own summary is an input only as evidence to check: the payment claims the Stop hook
+read from its final message (receipts.claims, logged as "receipts:summary") are compared with
+the records, and a claim the records contradict makes the verdict ISSUES_FOUND (check C11).
+Nothing here asks Claude whether it did the right thing.
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ from receipts import chain, config, pii
 from receipts.guard import GUARD_TOOL, money
 from receipts.source import Source
 
+SUMMARY_TOOL = "receipts:summary"  # Claude's payment claims, logged by the Stop hook
 RECEIPT_VERSION = 1
 CHECK_STATUS = {"pass": "verified", "block": "blocked", "ask": "needs_approval"}
 NEXT_STEP = {
@@ -75,6 +79,7 @@ def _last4(account: object) -> str:
 class _Bill:
     guards: list[dict] = field(default_factory=list)
     calls: list[dict] = field(default_factory=list)
+    claims: list[dict] = field(default_factory=list)  # what Claude's summaries said about it
 
 
 _NO_BILL = "\0no-bill"  # can't collide with a real bill id: SAFE_REF has no NUL
@@ -93,7 +98,33 @@ def _by_bill(log: list[dict], cfg: config.Config) -> dict[str, _Bill]:
         elif tool in cfg.payment_tools:
             bill_id = (cfg.payment_args(tool, inp) or {}).get("bill_id")
             bills.setdefault(_NO_BILL if bill_id is None else str(bill_id), _Bill()).calls.append(e)
+        elif tool == SUMMARY_TOOL:
+            for claim in inp.get("claims") or []:
+                if isinstance(claim, dict) and isinstance(claim.get("bill_id"), str):
+                    bills.setdefault(claim["bill_id"], _Bill()).claims.append(
+                        {**claim, "n": e["n"]}
+                    )
     return bills
+
+
+def _summary_check(seen: _Bill, live: list[dict], match: dict | None) -> dict:
+    """Compare what Claude's summaries said about the bill with the records. A summary that
+    called it paid needs a payment in the records; one that only called it not paid must not sit
+    next to a payment this flow made. Mixed statements (paid, then a refused retry) count as paid.
+    """
+    if not seen.claims:
+        return {"status": "not_checked"}
+    said_paid = any(c.get("says") == "paid" for c in seen.claims)
+    quotes = [
+        {"says": c.get("says"), "quote": c.get("quote"), "log_line": c["n"]} for c in seen.claims
+    ]
+    if said_paid and not live:
+        detail = "Claude's summary says it was paid, but the records hold no payment"
+        return {"status": "false_claim", "detail": detail, "claims": quotes}
+    if not said_paid and match is not None:
+        detail = "Claude's summary says it wasn't paid, but the records show the payment"
+        return {"status": "false_claim", "detail": detail, "claims": quotes}
+    return {"status": "matches", "claims": quotes}
 
 
 def _blocking(guard: dict) -> list[dict]:
@@ -210,8 +241,25 @@ def _receipt(
                 "evidence": [f"payments:{match['id']}"] if match else [],
             }
         )
+    summary = _summary_check(seen, live, match)
+    if summary["status"] != "not_checked":
+        evidence = [f"log:{c['log_line']}" for c in summary["claims"]]
+        if summary["status"] == "false_claim":
+            checks.append(
+                {
+                    "id": "C11",
+                    "status": "false_claim",
+                    "title": summary["detail"],
+                    "evidence": evidence,
+                }
+            )
+        else:
+            title = "Claude's summary matches the records"
+            checks.append({"id": "C11", "status": "verified", "title": title, "evidence": evidence})
     if status.ok:
         verdict, reason = _verdict(seen.guards, ran, live, match, extra)
+        if summary["status"] == "false_claim":
+            verdict, reason = "ISSUES_FOUND", f"{summary['detail']}. {reason}"
     else:
         verdict, reason = "UNTRUSTED", "The log was changed after the fact, so it can't be trusted"
     first_block = next((c["id"] for c in checks if c["status"] == "blocked"), None)
@@ -264,6 +312,7 @@ def _receipt(
             "to_account": pii.mask_text(str(asked.get("to_account", ""))) or None,
             "account_on_file": pii.mask_text(str(vendor.get("bank_account", ""))) or None,
         },
+        "summary_check": summary,
         "checks": checks,
         "log": {
             "ok": status.ok,

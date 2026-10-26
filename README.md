@@ -48,6 +48,12 @@ The verifier gives each bill one verdict:
 | NOT_PAID | No payment was made: the owner declined, or the bill was already paid and the attempt to pay it again was stopped |
 | UNTRUSTED | The log was changed after the fact |
 
+**What Claude says is checked too.** At the end of each turn, Receipts reads Claude's final
+message for sentences that say a bill was paid or not paid, logs them in the tamper-evident
+log, and compares them with the records (check C11). "Paid BILL-08" when BILL-08 was refused, or
+"didn't pay BILL-07" when it was paid, makes the bill ISSUES_FOUND and is called out in the
+end-of-turn summary. This is plain code reading sentences, not AI.
+
 The guard also refuses Claude's edits to `receipts.json`, the `logs/` folder, a SQLite records
 file, `.mcp.json` and `.claude/settings*.json`, so Claude can't raise its own limits, switch the
 hooks off, rename a payment tool or rewrite the log. The payee list and QuickBooks sign-in live
@@ -140,8 +146,11 @@ what it doesn't. The main limits:
 - **Bash is covered best-effort**; file tools reliably.
 - **Local log.** Copy `logs/` off the machine regularly: someone who can rewrite both the log
   and its head file can forge a shorter log.
-- **Not checked yet:** budgets, minimum balances, other currencies, a second different bill for
-  an order that's already paid, and whether Claude's own summary matches what happened.
+- **Claude's summary is checked by plain-text rules.** Sentences that name one bill and say it
+  was paid or not paid are compared with the records; a summary that names no bills, or says it
+  in unusual words, can't be checked. Treat a match as a good sign, not proof.
+- **Not checked yet:** budgets, minimum balances, other currencies, and a second different bill
+  for an order that's already paid.
 
 ## Development
 

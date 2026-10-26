@@ -10,9 +10,9 @@ and the owner's own payee list, and doesn't need a server or a database of its o
 
 ## Why
 
-In survey responses from small business owners, about 4 in 10 named privacy and security as a
-barrier to using AI, and about 1 in 3 said AI output is unreliable. Some who tried AI agents went
-back to approving everything by hand, because checking the AI's work cost more than it saved.
+Small business owners name privacy, security and unreliable output as the main reasons they hold
+back on AI. Some who tried AI agents went back to approving everything by hand, because checking
+the AI's work cost more than it saved.
 
 Safeguards written as instructions to the model ("pause and ask before paying") depend on the
 model following them. Receipts adds checks that run outside the model.

@@ -161,10 +161,6 @@ make receipt    # verify the example's log and write receipts
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
-## Origin
-
-Receipts began as a hackathon project at the Claude Impact Lab Hackathon, Seattle, October 2026.
-
 ## License
 
 MIT. See [LICENSE](LICENSE).
